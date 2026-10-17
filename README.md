@@ -10,7 +10,7 @@ The system enforces strict formatting guardrails (zero raw Markdown tables, zero
 
 The core logic operates as a **LangGraph State Machine** with conditional edge routing, iterative self-correction loops, and thread-level state persistence.
 
-![Alt Text](output.png)
+![Alt Text]([output.png](https://github.com/navnit-ky03/self_rag_engine/blob/main/output.png))
 
 ## 🔄 Graph Workflow Breakdown
 
