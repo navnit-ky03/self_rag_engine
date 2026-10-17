@@ -1,0 +1,26 @@
+# Environment & Secrets (API Keys)
+.env
+.env.*
+*.env
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# IDE & Editor Directories
+.vscode/
+.idea/
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# Optional: Ignore PDF Knowledge Bases if stored remotely/large
+# *.pdf
