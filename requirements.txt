@@ -11,3 +11,5 @@ langgraph
 faiss-cpu
 pypdf
 slowapi
+langchain-pinecone
+pinecone-client
