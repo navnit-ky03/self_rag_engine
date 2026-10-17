@@ -10,56 +10,7 @@ The system enforces strict formatting guardrails (zero raw Markdown tables, zero
 
 The core logic operates as a **LangGraph State Machine** with conditional edge routing, iterative self-correction loops, and thread-level state persistence.
 
-```
-                       ┌─────────────┐
-                       │  __start__  │
-                       └──────┬──────┘
-                              │
-                      ┌───────v────────┐
-                      │ decide_retrieval│
-                      └───────┬────────┘
-                              │
-             ┌────────────────┴────────────────┐
-             │ (need_retrieval)                │ (direct)
-             v                                 v
-       ┌───────────┐                   ┌───────────────┐
-       │  retrieve │                   │generate_direct│
-       └─────┬─────┘                   └───────┬───────┘
-             │                                 │
-      ┌──────v──────┐                          │
-      │ is_relevant │                          │
-      └──────┬──────┘                          │
-             ├──────────────────────┐          │
-             │ (has_relevant_docs)  │ (empty)  │
-             v                      v          │
- ┌──────────────────────┐  ┌─────────────────┐ │
- │generate_from_context │  │ no_answer_found │ │
- └──────────┬───────────┘  └────────┬────────┘ │
-            │                       │          │
-      ┌─────v──────┐                │          │
-┌────>│   is_sup   │                │          │
-│     └─────┬──────┘                │          │
-│           ├───────────────────────┤          │
-│ (revise)  │ (supported)           │          │
-│    ┌──────┴────────┐              │          │
-│    │ revise_answer │              │          │
-│    └───────────────┘              │          │
-│                                   v          │
-│                             ┌───────────┐    │
-│                             │  is_use   │    │
-│                             └─────┬─────┘    │
-│                                   │          │
-│           ┌───────────────────────┼──────────┤
-│           │ (useful)              │ (failed) │
-│           v                       v          v
-│      ┌──────────┐         ┌───────────────┐┌───┐
-│      │   __end__│         │rewrite_question││END│
-│      └──────────┘         └───────┬───────┘└───┘
-│                                   │          │
-└───────────────────────────────────┴──────────┘
-```
-
----
+![Alt Text](https://example.com/your-image.png)
 
 ## 🔄 Graph Workflow Breakdown
 
