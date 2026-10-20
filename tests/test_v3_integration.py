@@ -2,7 +2,7 @@
 import importlib
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from routing_v3 import requires_portfolio_retrieval, needs_context_rewrite
 
@@ -44,7 +44,12 @@ class GraphContractTests(unittest.TestCase):
     def setUpClass(cls):
         # Import graph without creating real ChatGroq clients or contacting
         # external systems; actual graph nodes are invoked using mocks.
-        with patch("langchain_groq.ChatGroq"):
+        def fake_chat(**_):
+            client = MagicMock()
+            client.with_structured_output.side_effect = lambda *_a, **_k: MagicMock()
+            return client
+
+        with patch("langchain_groq.ChatGroq", side_effect=fake_chat):
             cls.graph_module = importlib.import_module("graph_v3")
 
     def _config(self, thread_id):
