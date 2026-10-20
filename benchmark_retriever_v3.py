@@ -44,8 +44,9 @@ def main() -> None:
         print("documents:", json.dumps(concise_docs(docs), ensure_ascii=False))
         if diagnostics["profile"] != "comparative":
             continue
-        # A/B check: same query, same k, no per-project filtering.
-        # This does not add requests to the production path.
+        # A/B check: unreranked similarity baseline (k=8) against the
+        # default single-call candidate search plus local evidence selection.
+        # No extra request is made in the production retrieval path.
         baseline = store.as_retriever(search_type="similarity", search_kwargs={"k": 8})
         t0 = time.perf_counter()
         baseline_docs = list(baseline.invoke(question))
