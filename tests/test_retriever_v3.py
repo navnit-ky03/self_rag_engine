@@ -1,5 +1,6 @@
 """Offline, API-free checks: py -m unittest discover -s tests -p 'test_retriever_v3.py' -v."""
 import unittest
+from unittest.mock import patch
 
 from retriever_v3 import (
     V3_NAMESPACE, choose_profile, explicit_project_ids, make_search_kwargs,
@@ -86,6 +87,27 @@ class RetrievalTests(unittest.TestCase):
             make_search_kwargs("Question?", project_id="fake")
         with self.assertRaises(ValueError):
             build_retriever("Question?", namespace="portfolio-kb-v2-staging", store=FakeStore())
+
+    def test_store_caching(self):
+        from retriever_v3 import _cached_store
+        _cached_store.cache_clear()
+        with patch("langchain_google_genai.GoogleGenerativeAIEmbeddings") as embeddings, \
+             patch("langchain_pinecone.PineconeVectorStore.from_existing_index") as connect:
+            first = _cached_store("test-index", V3_NAMESPACE)
+            second = _cached_store("test-index", V3_NAMESPACE)
+        self.assertIs(first, second)
+        embeddings.assert_called_once()
+        connect.assert_called_once()
+        _cached_store.cache_clear()
+
+    def test_separate_setup_and_search_timing(self):
+        store = FakeStore([FakeDoc("neuroscan-ai")])
+        docs, info = retrieve("What does NeuroScan use?", store=store)
+        self.assertEqual(len(docs), 1)
+        self.assertIn("setup_ms", info)
+        self.assertIn("search_ms", info)
+        self.assertLessEqual(info["setup_ms"], info["elapsed_ms"])
+        self.assertLessEqual(info["search_ms"], info["elapsed_ms"])
 
     def test_mocked_retrieval_and_diagnostics(self):
         store = FakeStore([
