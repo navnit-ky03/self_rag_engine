@@ -6,6 +6,7 @@ is explicitly invoked. All defaults target the v3 staging namespace.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 import re
 import time
 from typing import Any, Literal
@@ -111,6 +112,24 @@ def make_search_kwargs(
     return settings.search_type, kwargs
 
 
+@lru_cache(maxsize=2)
+def _cached_store(index_name: str, namespace: str) -> Any:
+    """Reuse the client and embedding object across searches in one process."""
+    from langchain_google_genai import GoogleGenerativeAIEmbeddings
+    from langchain_pinecone import PineconeVectorStore
+    from config import EMBEDDING_MODEL
+    return PineconeVectorStore.from_existing_index(
+        index_name=index_name,
+        embedding=GoogleGenerativeAIEmbeddings(model=EMBEDDING_MODEL),
+        namespace=namespace,
+    )
+
+
+def _default_index_name() -> str:
+    from config import PINECONE_INDEX_NAME
+    return PINECONE_INDEX_NAME
+
+
 def build_retriever(
     query: str,
     *,
@@ -128,14 +147,7 @@ def build_retriever(
         query, selected, project_id=project_id
     )
     if store is None:
-        from langchain_google_genai import GoogleGenerativeAIEmbeddings
-        from langchain_pinecone import PineconeVectorStore
-        from config import EMBEDDING_MODEL, PINECONE_INDEX_NAME
-        store = PineconeVectorStore.from_existing_index(
-            index_name=index_name or PINECONE_INDEX_NAME,
-            embedding=GoogleGenerativeAIEmbeddings(model=EMBEDDING_MODEL),
-            namespace=namespace,
-        )
+        store = _cached_store(index_name or _default_index_name(), namespace)
     retriever = store.as_retriever(
         search_type=search_type, search_kwargs=search_kwargs
     )
@@ -157,10 +169,15 @@ def retrieve(
         query, profile=profile, project_id=project_id,
         store=store, index_name=index_name,
     )
+    ready_ms = round((time.perf_counter() - t0) * 1000, 2)
+    query_start = time.perf_counter()
     docs = list(retriever.invoke(query))
+    search_ms = round((time.perf_counter() - query_start) * 1000, 2)
     projects = sorted({d.metadata.get("project_id", "") for d in docs
                        if d.metadata.get("project_id", "")})
     diagnostics.update(
+        setup_ms=ready_ms,
+        search_ms=search_ms,
         result_count=len(docs),
         distinct_projects=projects,
         section_types=sorted({d.metadata.get("section_type", "")
