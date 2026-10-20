@@ -218,6 +218,35 @@ class GraphContractTests(unittest.TestCase):
         self.assertIn("research-oriented", out["answer"])
         self.assertEqual(out["chat_history"][-1]["content"], out["answer"])
 
+    def test_table_answer_is_converted_before_history(self):
+        g = self.graph_module
+        from langchain_core.documents import Document
+        docs = [Document(
+            page_content="Self-RAG uses FastAPI. NeuroScan uses MONAI.",
+            metadata={"section_id": "B2", "project_id": ""},
+        )]
+        markdown = (
+            "| Project | Technology |\\n"
+            "|---|---|\\n"
+            "| Self-RAG | FastAPI |\\n"
+            "| NeuroScan | MONAI |"
+        )
+        with patch.object(g, "retrieve", return_value=(docs, {
+            "profile": "comparative", "result_count": 1,
+        })), patch.object(g.llm, "invoke", return_value=SimpleNamespace(
+            content=markdown
+        )), patch.object(g.support_llm, "invoke", return_value=SimpleNamespace(
+            issup="fully_supported", evidence=[]
+        )):
+            out = g.app.invoke(
+                {"question": "Compare Self-RAG and NeuroScan."},
+                config=self._config("v3-no-table"),
+            )
+        self.assertIn("FastAPI", out["answer"])
+        self.assertIn("MONAI", out["answer"])
+        self.assertNotIn("|---|", out["answer"])
+        self.assertEqual(out["chat_history"][-1]["content"], out["answer"])
+
     def test_generation_service_failure_propagates(self):
         g = self.graph_module
         from langchain_core.documents import Document
