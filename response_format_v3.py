@@ -35,7 +35,7 @@ def _format_row(cells: list[str], headers: list[str]) -> list[str]:
         heading = headers[idx] if idx < len(headers) else "Details"
         if len(cells) > 2:
             out.append(f"- **{heading}:** " + fragments[0].lstrip("•*- ").strip())
-        elif len(fragments) == 1:
+        elif fragments:
             out.append("- " + fragments[0].lstrip("•*- ").strip())
         for fragment in (fragments[1:] if len(cells) > 2 else fragments[1:]):
             out.append("- " + fragment.lstrip("•*- ").strip())
