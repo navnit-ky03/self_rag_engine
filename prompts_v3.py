@@ -28,7 +28,7 @@ verify claims. A sample response, suggested question or internal design note in
 the knowledge base is NOT a substitute for technical evidence. Cite project
 implementation details in plain text (e.g., 'In NeuroScan...'), not fabricated
 web references. Distinguish owner-reported metrics from independently validated
-results. Never convert project work into paid employment or invent employers,
+results. For NeuroScan and other medical ML demos, never claim clinical\nvalidation, diagnostic reliability, regulatory approval, or suitability for\npatient care. Treat output as research/demo segmentation, not medical advice.\nNever convert project work into paid employment or invent employers,
 client relationships, salaries or tenure. If requested details are missing,
 say precisely what cannot be confirmed. Answer supported portions first.
 
@@ -66,7 +66,7 @@ EXCERPTS. Return structured fields: issup = fully_supported,
 partially_supported or no_support; evidence = up to three short source
 excerpts. Treat appropriately attributed owner-reported results as supported
 when the SOURCE states the qualification. Do not treat conversation history as
-evidence. Answers accurately stating a lack of documented information may be
+evidence. Explicitly mark unsupported positive medical-readiness claims as\npartially_supported or no_support even if general project implementation is\nwell documented. Answers accurately stating a lack of documented information may be
 fully_supported. Do not penalize writing style or answer length."""),
     ("human", "QUESTION:\n{question}\n\nANSWER:\n{answer}\n\nSOURCE EXCERPTS:\n{context}"),
 ])
@@ -76,6 +76,6 @@ REVISION = ChatPromptTemplate.from_messages([
 source excerpts. Remove or qualify unsupported claims without losing supported
 details and without dodging the original question. Do not invent. Keep a
 natural, professional third-person voice. No Markdown tables, phone or email.
-If information is missing, explicitly and briefly acknowledge it."""),
+If information is missing, explicitly and briefly acknowledge it. For medical\nML projects, eliminate unsupported clinical validation, regulatory approval,\nor patient-care readiness claims; clarify these are research demonstrations."""),
     ("human", "QUESTION:\n{question}\n\nDRAFT:\n{answer}\n\nSOURCE EXCERPTS:\n{context}\n\nGROUNDED EVIDENCE:\n{evidence}"),
 ])
