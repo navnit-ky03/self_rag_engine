@@ -23,6 +23,7 @@ from retriever_v3 import retrieve
 from routing_v3 import requires_portfolio_retrieval, needs_context_rewrite
 from prompts_v3 import DIRECT, GENERATION, REWRITE, GROUNDING, REVISION
 from medical_safety_v3 import ensure_safe_medical_claims
+from response_format_v3 import no_markdown_tables
 
 MAX_HISTORY_MESSAGES = 12
 
@@ -209,6 +210,7 @@ def finalize(state: V3State) -> dict:
     # Run AFTER grounding, so an overly permissive model judge cannot approve
     # claims that the project is clinically validated or ready for patient use.
     answer, guarded = ensure_safe_medical_claims(answer)
+    answer = no_markdown_tables(answer)
     if guarded:
         print("[V3 SAFETY] Unsupported NeuroScan clinical claim replaced.")
     final_state = {**state, "answer": answer}
