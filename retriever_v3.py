@@ -44,7 +44,7 @@ PROJECT_ALIASES: dict[str, tuple[str, ...]] = {
 
 COMPARATIVE = re.compile(
     r"\b(compare|comparison|versus|vs\.?|which projects?|what projects?|"
-    r"best projects?|top projects?|strongest|most advanced|most complex|"
+    r"best (?:\\w+\\s+){0,3}projects?|top (?:\\w+\\s+){0,3}projects?|strongest|most advanced|most complex|"
     r"most technical|rank|ranking|across projects?|among projects?|"
     r"multiple projects?|recommend projects?|"
     r"demonstrate (?:his |navnit'?s )?(?:skills|experience|capabilit))\b",
