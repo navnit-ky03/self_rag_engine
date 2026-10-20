@@ -76,11 +76,11 @@ async def stream_rag_tokens(question: str, thread_id: str):
             result = await run_in_threadpool(
                 rag_app.invoke, {"question": question}, config
             )
-            yield f"data: {json.dumps({'token': result['answer']})}\\n\\n"
+            yield f"data: {json.dumps({'token': result['answer']})}\n\n"
         except Exception as exc:
             print(f"[ERROR] V3 Streaming Exception: {exc}")
-            yield f"data: {json.dumps({'token': ' The assistant is temporarily unavailable.'})}\\n\\n"
-        yield "data: [DONE]\\n\\n"
+            yield f"data: {json.dumps({'token': ' The assistant is temporarily unavailable.'})}\n\n"
+        yield "data: [DONE]\n\n"
         return
 
     # Only stream tokens from actual answer generation nodes (ignore grading/eval LLM calls)
