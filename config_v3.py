@@ -7,4 +7,4 @@ from config import (
 
 V3_ENABLED = os.getenv("SELF_RAG_VERSION", "2").strip() == "3"
 V3_NAMESPACE = "portfolio-kb-v3-staging"
-V3_MAX_REVISIONS = int(os.getenv("V3_MAX_REVISIONS", "1"))
+V3_MAX_REVISIONS = min(2, max(0, int(os.getenv("V3_MAX_REVISIONS", "1"))))
