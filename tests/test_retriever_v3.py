@@ -11,6 +11,7 @@ from retriever_v3 import (
 class FakeDoc:
     def __init__(self, project_id, section_type="project_knowledge"):
         self.metadata = {"project_id": project_id, "section_type": section_type}
+        self.page_content = f"**Implementation.** Evidence about {project_id}. Python FastAPI MONAI n8n."
 
 
 class FakeRetriever:
@@ -65,9 +66,9 @@ class RetrievalTests(unittest.TestCase):
 
     def test_comparative_is_unfiltered(self):
         kind, opts = make_search_kwargs("Compare Self-RAG and NeuroScan")
-        self.assertEqual(kind, "mmr")
-        self.assertEqual(opts["k"], 8)
-        self.assertEqual(opts["fetch_k"], 20)
+        self.assertEqual(kind, "similarity")
+        self.assertEqual(opts["k"], 18)
+        self.assertNotIn("fetch_k", opts)
         self.assertNotIn("filter", opts)
 
     def test_no_auto_filter_on_general(self):
@@ -109,6 +110,35 @@ class RetrievalTests(unittest.TestCase):
         self.assertLessEqual(info["setup_ms"], info["elapsed_ms"])
         self.assertLessEqual(info["search_ms"], info["elapsed_ms"])
 
+    def test_comparative_selection_prefers_project_evidence(self):
+        from evidence_v3 import choose_evidence
+        candidates = [
+            FakeDoc("", "conversation_reference"),
+            FakeDoc("", "integrity_and_operations"),
+            FakeDoc("delivery-analytics"),
+            FakeDoc("fraud-detection"),
+            FakeDoc("self-corrective-rag"),
+            FakeDoc("neuroscan-ai"),
+            FakeDoc("", "capability_comparison"),
+        ]
+        result = choose_evidence(
+            candidates, "Compare Self-RAG and NeuroScan", limit=4,
+            required_projects=("self-corrective-rag", "neuroscan-ai"),
+        )
+        ids = [doc.metadata["project_id"] for doc in result]
+        self.assertEqual(len(result), 4)
+        self.assertIn("self-corrective-rag", ids)
+        self.assertIn("neuroscan-ai", ids)
+        self.assertNotIn("integrity_and_operations",
+                         [doc.metadata["section_type"] for doc in result])
+
+    def test_single_search_and_evidence_cap(self):
+        store = FakeStore([FakeDoc("neuroscan-ai") for _ in range(20)])
+        docs, info = retrieve("What projects compare with NeuroScan?", store=store)
+        self.assertEqual(len(store.calls), 1)
+        self.assertLessEqual(len(docs), 8)
+        self.assertEqual(info["candidate_count"], 20)
+
     def test_mocked_retrieval_and_diagnostics(self):
         store = FakeStore([
             FakeDoc("self-corrective-rag"),
@@ -122,7 +152,8 @@ class RetrievalTests(unittest.TestCase):
         self.assertEqual(report["distinct_projects"], ["neuroscan-ai", "self-corrective-rag"])
         self.assertIn("capability_comparison", report["section_types"])
         self.assertGreaterEqual(report["elapsed_ms"], 0)
-        self.assertEqual(store.calls[0][0], "mmr")
+        self.assertEqual(store.calls[0][0], "similarity")
+        self.assertEqual(store.calls[0][1]["k"], 18)
 
 
 if __name__ == "__main__":
