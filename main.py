@@ -7,13 +7,17 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from schemas import ChatRequest, ChatResponse
-from graph import app as rag_app
+from config_v3 import V3_ENABLED
+if V3_ENABLED:
+    from graph_v3 import app as rag_app
+else:
+    from graph import app as rag_app
 import traceback
 
 app = FastAPI(
     title="Navnit's AI Assistant RAG API",
     description="Decoupled backend service powering the portfolio RAG chatbot",
-    version="2.0.0"
+    version="3.0.0" if V3_ENABLED else "2.0.0"
 )
 
 app.add_middleware(
@@ -64,6 +68,21 @@ def chat_endpoint(request: Request, chat_request: ChatRequest):
 # Real-time SSE Answer Streaming Endpoint
 async def stream_rag_tokens(question: str, thread_id: str):
     config = {"configurable": {"thread_id": thread_id}}
+    if V3_ENABLED:
+        # V3 answers are verified after generation. Never stream provisional
+        # tokens before the grounding validator has accepted the final answer.
+        from fastapi.concurrency import run_in_threadpool
+        try:
+            result = await run_in_threadpool(
+                rag_app.invoke, {"question": question}, config
+            )
+            yield f"data: {json.dumps({'token': result['answer']})}\\n\\n"
+        except Exception as exc:
+            print(f"[ERROR] V3 Streaming Exception: {exc}")
+            yield f"data: {json.dumps({'token': ' The assistant is temporarily unavailable.'})}\\n\\n"
+        yield "data: [DONE]\\n\\n"
+        return
+
     # Only stream tokens from actual answer generation nodes (ignore grading/eval LLM calls)
     answer_nodes = {"direct_ans", "context_ans", "revise_ans"}
 
