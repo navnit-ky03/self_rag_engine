@@ -226,9 +226,9 @@ class GraphContractTests(unittest.TestCase):
             metadata={"section_id": "B2", "project_id": ""},
         )]
         markdown = (
-            "| Project | Technology |\\n"
-            "|---|---|\\n"
-            "| Self-RAG | FastAPI |\\n"
+            "| Project | Technology |\n"
+            "|---|---|\n"
+            "| Self-RAG | FastAPI |\n"
             "| NeuroScan | MONAI |"
         )
         with patch.object(g, "retrieve", return_value=(docs, {
