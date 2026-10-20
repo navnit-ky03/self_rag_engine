@@ -24,7 +24,7 @@ class ProfileSettings:
 PROFILES: dict[str, ProfileSettings] = {
     "focused": ProfileSettings(k=4, search_type="similarity"),
     "detailed": ProfileSettings(k=6, search_type="similarity"),
-    "comparative": ProfileSettings(k=8, search_type="mmr", fetch_k=20, lambda_mult=0.55),
+    "comparative": ProfileSettings(k=8, search_type="similarity", fetch_k=18, lambda_mult=0.55),
 }
 
 # Match explicit entities only. Pronouns and elliptical follow-ups require
@@ -97,7 +97,10 @@ def make_search_kwargs(
     if project_id is not None and project_id not in PROJECT_ALIASES:
         raise ValueError(f"Unknown project_id: {project_id}")
     settings = PROFILES[selected]
-    kwargs: dict[str, Any] = {"k": settings.k}
+    # Comparative fetches a broader candidate pool in ONE search; evidence_v3
+    # selects the final eight locally (no second embedding or LLM request).
+    candidate_k = settings.fetch_k if selected == "comparative" and settings.search_type == "similarity" else settings.k
+    kwargs: dict[str, Any] = {"k": candidate_k}
     if settings.search_type == "mmr":
         kwargs.update(fetch_k=settings.fetch_k, lambda_mult=settings.lambda_mult)
 
@@ -171,13 +174,21 @@ def retrieve(
     )
     ready_ms = round((time.perf_counter() - t0) * 1000, 2)
     query_start = time.perf_counter()
-    docs = list(retriever.invoke(query))
+    raw_docs = list(retriever.invoke(query))
     search_ms = round((time.perf_counter() - query_start) * 1000, 2)
+    from evidence_v3 import choose_evidence
+    selected = diagnostics["profile"]
+    docs = choose_evidence(
+        raw_docs, query,
+        limit=PROFILES[selected].k,
+        required_projects=tuple(explicit_project_ids(query)) if selected == "comparative" else (),
+    )
     projects = sorted({d.metadata.get("project_id", "") for d in docs
                        if d.metadata.get("project_id", "")})
     diagnostics.update(
         setup_ms=ready_ms,
         search_ms=search_ms,
+        candidate_count=len(raw_docs),
         result_count=len(docs),
         distinct_projects=projects,
         section_types=sorted({d.metadata.get("section_type", "")
