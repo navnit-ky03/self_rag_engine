@@ -139,5 +139,126 @@ class GraphContractTests(unittest.TestCase):
         self.assertIn("couldn't verify", out["answer"])
 
 
+    def test_two_threads_do_not_share_conversation(self):
+        g = self.graph_module
+        from langchain_core.documents import Document
+        docs = [Document(
+            page_content="NeuroScan is a PyTorch segmentation project.",
+            metadata={"section_id": "C2", "project_id": "neuroscan-ai"},
+        )]
+        with patch.object(g, "retrieve", return_value=(docs, {"profile": "focused"})), \
+             patch.object(g.llm, "invoke", return_value=SimpleNamespace(
+                 content="NeuroScan uses PyTorch."
+             )), \
+             patch.object(g.support_llm, "invoke", return_value=SimpleNamespace(
+                 issup="fully_supported", evidence=[]
+             )):
+            a = g.app.invoke(
+                {"question": "Describe NeuroScan."},
+                config=self._config("v3-release-thread-a"),
+            )
+            b = g.app.invoke(
+                {"question": "What does NeuroScan use?"},
+                config=self._config("v3-release-thread-b"),
+            )
+        self.assertEqual(len(a["chat_history"]), 2)
+        self.assertEqual(len(b["chat_history"]), 2)
+        self.assertNotEqual(
+            a["chat_history"][0]["content"],
+            b["chat_history"][0]["content"],
+        )
+
+    def test_explicit_project_switch_skips_rewrite(self):
+        g = self.graph_module
+        from langchain_core.documents import Document
+        docs = [Document(
+            page_content="NeuroScan uses PyTorch; voice booking uses n8n.",
+            metadata={"section_id": "B2", "project_id": ""},
+        )]
+        with patch.object(g, "retrieve", return_value=(docs, {"profile": "focused"})) as retrieval, \
+             patch.object(g.llm, "invoke", return_value=SimpleNamespace(
+                 content="A project technology summary."
+             )), \
+             patch.object(g.support_llm, "invoke", return_value=SimpleNamespace(
+                 issup="fully_supported", evidence=[]
+             )), \
+             patch.object(g.rewrite_llm, "invoke") as rewrite:
+            g.app.invoke(
+                {"question": "Tell me about NeuroScan AI."},
+                config=self._config("v3-release-switch"),
+            )
+            out = g.app.invoke(
+                {"question": "What technologies does the Voice Booking Assistant use?"},
+                config=self._config("v3-release-switch"),
+            )
+        rewrite.assert_not_called()
+        self.assertIn("Voice Booking", retrieval.call_args.args[0])
+        self.assertEqual(len(out["chat_history"]), 4)
+
+    def test_medical_guard_even_when_judge_approves(self):
+        g = self.graph_module
+        from langchain_core.documents import Document
+        docs = [Document(
+            page_content="NeuroScan is a research 3D MRI segmentation project built using PyTorch and MONAI.",
+            metadata={"section_id": "C2", "project_id": "neuroscan-ai"},
+        )]
+        with patch.object(g, "retrieve", return_value=(docs, {"profile": "focused"})), \
+             patch.object(g.llm, "invoke", return_value=SimpleNamespace(
+                 content="NeuroScan is clinically useful and suitable for patient care."
+             )), \
+             patch.object(g.support_llm, "invoke", return_value=SimpleNamespace(
+                 issup="fully_supported", evidence=[]
+             )):
+            out = g.app.invoke(
+                {"question": "Is NeuroScan clinically useful?"},
+                config=self._config("v3-release-clinical"),
+            )
+        self.assertTrue(out["medical_safety_intervened"])
+        self.assertNotIn("clinically useful", out["answer"])
+        self.assertIn("research-oriented", out["answer"])
+        self.assertEqual(out["chat_history"][-1]["content"], out["answer"])
+
+    def test_generation_service_failure_propagates(self):
+        g = self.graph_module
+        from langchain_core.documents import Document
+        docs = [Document(
+            page_content="NeuroScan uses PyTorch.",
+            metadata={"section_id": "C2", "project_id": "neuroscan-ai"},
+        )]
+        with patch.object(g, "retrieve", return_value=(docs, {"profile": "focused"})), \
+             patch.object(g.llm, "invoke", side_effect=RuntimeError("Groq unavailable")):
+            with self.assertRaisesRegex(RuntimeError, "Groq unavailable"):
+                g.app.invoke(
+                    {"question": "What does NeuroScan use?"},
+                    config=self._config("v3-release-provider-failure"),
+                )
+
+
+class ClinicalSafetyTests(unittest.TestCase):
+    def test_rejects_clinical_approval_language(self):
+        from medical_safety_v3 import ensure_safe_medical_claims
+        answer, intervened = ensure_safe_medical_claims(
+            "NeuroScan is FDA approved and clinically validated."
+        )
+        self.assertTrue(intervened)
+        self.assertIn("does not establish clinical", answer)
+
+    def test_allows_research_description_and_explicit_disclaimer(self):
+        from medical_safety_v3 import ensure_safe_medical_claims
+        for answer in (
+            "NeuroScan uses PyTorch and MONAI to segment 3D MRI data.",
+            "NeuroScan is not clinically validated for patient care.",
+        ):
+            with self.subTest(answer=answer):
+                output, intervened = ensure_safe_medical_claims(answer)
+                self.assertFalse(intervened)
+                self.assertEqual(output, answer)
+
+    def test_only_applies_to_neuroscan(self):
+        from medical_safety_v3 import ensure_safe_medical_claims
+        answer = "The phrase clinically validated appears in a dictionary example."
+        self.assertEqual(ensure_safe_medical_claims(answer), (answer, False))
+
+
 if __name__ == "__main__":
     unittest.main()
