@@ -8,11 +8,12 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from schemas import ChatRequest, ChatResponse
 from graph import app as rag_app
+import traceback
 
 app = FastAPI(
     title="Navnit's AI Assistant RAG API",
     description="Decoupled backend service powering the portfolio RAG chatbot",
-    version="1.0.0"
+    version="2.0.0"
 )
 
 app.add_middleware(
@@ -49,6 +50,7 @@ def chat_endpoint(request: Request, chat_request: ChatRequest):
             f"Query: '{chat_request.question[:40]}...'"
         )
     except Exception as e:
+        traceback.print_exc()
         t_elapsed = time.perf_counter() - t_start
         print(f"[ERROR] RAG Pipeline Exception after {t_elapsed:.3f}s: {e}")
         raise HTTPException(

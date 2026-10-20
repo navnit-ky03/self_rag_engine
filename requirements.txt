@@ -1,15 +1,24 @@
-fastapi>=0.110.0
-uvicorn>=0.28.0
-pydantic>=2.6.0
-python-dotenv>=1.0.1
-slowapi>=0.1.9
-langchain>=0.2.0
-langchain-community>=0.2.0
-langchain-core>=0.2.0
-langchain-groq>=0.1.0
-langchain-google-genai>=1.0.0
-langchain-pinecone>=0.1.0
-pinecone-client>=3.2.0
-langgraph>=0.1.0
-faiss-cpu>=1.8.0
-pypdf>=4.0.0
+# API Framework
+fastapi
+uvicorn
+pydantic
+python-dotenv
+slowapi
+
+# LangChain & LangGraph
+langchain
+langchain-core
+langchain-community
+langchain-text-splitters
+langgraph
+
+# LLM Integrations
+langchain-groq
+langchain-google-genai
+
+# Vector Database
+langchain-pinecone
+pinecone
+
+# PDF Processing
+pypdf

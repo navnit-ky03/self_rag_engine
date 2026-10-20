@@ -24,3 +24,5 @@ Thumbs.db
 
 # Optional: Ignore PDF Knowledge Bases if stored remotely/large
 # *.pdf
+!.env.example
+Navnit_Kumar_Yadav_Master_Knowledge_Base_v2.pdf
