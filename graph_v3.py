@@ -22,6 +22,7 @@ from schemas import State, issup, retrieval
 from retriever_v3 import retrieve
 from routing_v3 import requires_portfolio_retrieval, needs_context_rewrite
 from prompts_v3 import DIRECT, GENERATION, REWRITE, GROUNDING, REVISION
+from medical_safety_v3 import ensure_safe_medical_claims
 
 MAX_HISTORY_MESSAGES = 12
 
@@ -31,6 +32,7 @@ class V3State(State, total=False):
     retrieval_stats: dict
     grounding_status: str
     revisions: int
+    medical_safety_intervened: bool
 
 
 def _history_text(history: list[dict]) -> str:
@@ -193,14 +195,28 @@ def revise_ans(state: V3State) -> dict:
 
 
 def finalize(state: V3State) -> dict:
-    if state.get("grounding_status") not in ("fully_supported", "not_checked"):
-        # Never return a draft the evaluator has identified as ungrounded.
+    status = state.get("grounding_status")
+    if state.get("need_retrival", True) and status != "fully_supported" and state.get("context"):
+        # Do not leak an unverified draft when checking exhausts its budget.
         answer = (
             "I couldn't verify enough evidence to answer that reliably. "
             "You can ask about a specific project or its implementation."
         )
-        return {"answer": answer, "chat_history": _store_turn({**state, "answer": answer})["chat_history"]}
-    return _store_turn(state)
+    else:
+        answer = state["answer"]
+
+    # Explicit clinical safety gate for the model-generated final answer.
+    # Run AFTER grounding, so an overly permissive model judge cannot approve
+    # claims that the project is clinically validated or ready for patient use.
+    answer, guarded = ensure_safe_medical_claims(answer)
+    if guarded:
+        print("[V3 SAFETY] Unsupported NeuroScan clinical claim replaced.")
+    final_state = {**state, "answer": answer}
+    return {
+        "answer": answer,
+        "chat_history": _store_turn(final_state)["chat_history"],
+        "medical_safety_intervened": guarded,
+    }
 
 
 graph = StateGraph(V3State)
