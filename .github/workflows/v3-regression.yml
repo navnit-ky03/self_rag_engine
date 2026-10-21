@@ -1,0 +1,30 @@
+name: Self-RAG v3 offline regression
+on:
+  push:
+    branches: [feature/self-rag-v3.0.0]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Test v3 graph and safety
+        run: python -m unittest discover -s tests -p 'test_v3_integration.py' -v
+      - name: Test FastAPI contract
+        run: python -m unittest discover -s tests -p 'test_v3_api_contract.py' -v
+      - name: Test deterministic table formatting
+        run: python -m unittest discover -s tests -p 'test_response_format_v3.py' -v
+      - name: Test retriever rules
+        run: python -m unittest discover -s tests -p 'test_retriever_v3.py' -v
+      - name: Test safe ingestion
+        run: python -m unittest discover -s tests -p 'test_ingest_v3.py' -v
